@@ -157,24 +157,25 @@ def build_data_block(tasks, summary):
     data = {
         "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "clickup_url": CLICKUP_URL,
-        "tasks": tasks,
     }
-    tasks_json = json.dumps(data["tasks"], indent=2)
+    tasks_json = json.dumps(tasks, indent=2)
     summary_json = json.dumps(summary, indent=2)
 
-    block = f"""<!-- DATA_BLOCK_START -->
-<script>
-const DATA = {{
-  generated_at: "{data['generated_at']}",
-  clickup_url: "{data['clickup_url']}",
-  tasks: {tasks_json}
-}};
-
-(function() {{
-  DATA.summary = {summary_json};
-}})();
-</script>
-<!-- DATA_BLOCK_END -->"""
+    block = (
+        "<!-- DATA_BLOCK_START -->\n"
+        "<script>\n"
+        "const DATA = {\n"
+        f'  generated_at: "{data["generated_at"]}",\n'
+        f'  clickup_url: "{data["clickup_url"]}",\n'
+        f"  tasks: {tasks_json}\n"
+        "};\n"
+        "\n"
+        "(function() {\n"
+        f"  DATA.summary = {summary_json};\n"
+        "})();\n"
+        "</script>\n"
+        "<!-- DATA_BLOCK_END -->"
+    )
     return block
 
 
@@ -184,14 +185,14 @@ def rewrite_index(new_block):
         sys.exit(1)
     with open(INDEX_HTML, "r", encoding="utf-8") as f:
         html = f.read()
-    pattern = r'<!-- DATA_BLOCK_START -->.*?<!-- DATA_BLOCK_END -->'
+    pattern = r"<!-- DATA_BLOCK_START -->.*?<!-- DATA_BLOCK_END -->"
     updated = re.sub(pattern, new_block, html, flags=re.DOTALL)
     if updated == html:
         print("WARNING: DATA block sentinels not found in index.html. File unchanged.", file=sys.stderr)
         sys.exit(1)
     with open(INDEX_HTML, "w", encoding="utf-8", newline="\n") as f:
         f.write(updated)
-    print(f"index.html updated successfully.")
+    print("index.html updated successfully.")
 
 
 def main():
