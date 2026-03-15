@@ -127,6 +127,7 @@ const DATA = {
     const app = document.getElementById('app');
     app.innerHTML = '';
     app.appendChild(renderHeader());
+    app.appendChild(renderKPIStrip());
   }
 
   function renderHeader() {
@@ -146,6 +147,30 @@ const DATA = {
           </a>
         </div>
       </div>`;
+    return el;
+  }
+
+  function renderKPIStrip() {
+    const s = DATA.summary;
+    const cards = [
+      { label: 'Total Tasks',        value: s.total,                  note: 'all tasks on board',                          color: 'text-gray-900' },
+      { label: 'Open Tasks',         value: s.open,                   note: `${s.todo} to do · ${s.in_progress} in progress`, color: 'text-blue-600' },
+      { label: 'Completed',          value: s.done,                   note: s.done === 0 ? 'none closed yet' : 'tasks closed', color: 'text-green-600' },
+      { label: 'Overdue',            value: s.overdue,                note: 'past due date',                               color: 'text-red-600' },
+      { label: 'In Progress',        value: s.in_progress,            note: 'currently in execution',                      color: 'text-blue-600' },
+      { label: 'Approval & Invoice', value: s.approval_invoice,       note: 'awaiting approval',                           color: 'text-amber-600' },
+      { label: 'Max Time Taken',     value: `${s.max_time_taken_days}d`, note: 'longest running task',                     color: 'text-gray-700' },
+      { label: 'Avg Resolution',     value: s.avg_resolution_days !== null ? `${s.avg_resolution_days}d` : '—',
+                                     note: 'created → done',                                                               color: 'text-gray-700' },
+    ];
+    const el = document.createElement('div');
+    el.className = 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4';
+    el.innerHTML = cards.map(c => `
+      <div class="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-1">
+        <span class="text-xs text-gray-500 font-medium uppercase tracking-wide">${c.label}</span>
+        <span class="text-2xl font-bold ${c.color}">${c.value}</span>
+        <span class="text-xs text-gray-400">${c.note}</span>
+      </div>`).join('');
     return el;
   }
 </script>
