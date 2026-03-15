@@ -16,7 +16,7 @@ import json
 import time
 from datetime import date, datetime
 
-LIST_ID = "2kzkcy0m-5718"
+LIST_ID = "901816467742"
 CLICKUP_URL = "https://app.clickup.com/90181105684/v/l/2kzkcy0m-5718"
 API_BASE = "https://api.clickup.com/api/v2"
 INDEX_HTML = "index.html"
@@ -101,7 +101,7 @@ def transform_tasks(raw_tasks):
             time_in_status = 0
 
         is_overdue = False
-        if due_date and status != "Done":
+        if due_date and status != "done":
             is_overdue = date.fromisoformat(due_date) < today
 
         tasks.append({
@@ -123,12 +123,12 @@ def transform_tasks(raw_tasks):
 
 
 def compute_summary(tasks):
-    done = [t for t in tasks if t["status"] == "Done"]
-    open_tasks = [t for t in tasks if t["status"] != "Done"]
+    done = [t for t in tasks if t["status"] == "done"]
+    open_tasks = [t for t in tasks if t["status"] != "done"]
     overdue = [t for t in tasks if t["is_overdue"]]
-    in_progress = [t for t in tasks if t["status"] == "In Progress"]
-    approval = [t for t in tasks if t["status"] == "Approval & Invoice"]
-    todo = [t for t in tasks if t["status"] == "To Do"]
+    in_progress = [t for t in tasks if t["status"] == "in progress"]
+    approval = [t for t in tasks if t["status"] == "approval & invoice"]
+    todo = [t for t in tasks if t["status"] == "to do"]
 
     avg_resolution = None
     if done:
@@ -186,7 +186,7 @@ def rewrite_index(new_block):
     with open(INDEX_HTML, "r", encoding="utf-8") as f:
         html = f.read()
     pattern = r"<!-- DATA_BLOCK_START -->.*?<!-- DATA_BLOCK_END -->"
-    updated = re.sub(pattern, new_block, html, flags=re.DOTALL)
+    updated = re.sub(pattern, lambda _: new_block, html, flags=re.DOTALL)
     if updated == html:
         print("WARNING: DATA block sentinels not found in index.html. File unchanged.", file=sys.stderr)
         sys.exit(1)
