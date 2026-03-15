@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rebate Tracker Executive Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            brand: {
+              bg: '#F7F8FA',
+              card: '#FFFFFF',
+              border: '#E5E7EB',
+              textPrimary: '#111827',
+              textSecondary: '#6B7280',
+              todo: '#9CA3AF',
+              inprogress: '#2563EB',
+              approval: '#D97706',
+              done: '#059669',
+              overdue: '#DC2626',
+              recoBg: '#F9FAFB',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #F7F8FA; color: #111827; }
+    .status-pill { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
+    .pill-todo { background: #F3F4F6; color: #6B7280; }
+    .pill-inprogress { background: #DBEAFE; color: #2563EB; }
+    .pill-approval { background: #FEF3C7; color: #D97706; }
+    .pill-done { background: #D1FAE5; color: #059669; }
+    .pill-overdue { background: #FEE2E2; color: #DC2626; }
+    .reco-panel { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 0.75rem; padding: 12px 16px; margin-top: 12px; font-size: 0.8rem; color: #374151; }
+  </style>
+</head>
+<body class="min-h-screen p-6">
+
+  <div id="app" class="max-w-7xl mx-auto space-y-6">
+    <!-- Sections rendered by JS -->
+  </div>
+
+<!-- DATA_BLOCK_START -->
+<script>
+const DATA = {};
+</script>
+<!-- DATA_BLOCK_END -->
+
+<script>
+  // Main render — called after DATA is defined
+  document.addEventListener('DOMContentLoaded', () => renderDashboard());
+  function renderDashboard() {
+    const app = document.getElementById('app');
+    app.innerHTML = '<p class="text-gray-400 text-sm">Loading...</p>';
+  }
+</script>
+</body>
+</html>
