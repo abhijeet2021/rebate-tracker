@@ -125,7 +125,28 @@ const DATA = {
   document.addEventListener('DOMContentLoaded', () => renderDashboard());
   function renderDashboard() {
     const app = document.getElementById('app');
-    app.innerHTML = '<p class="text-gray-400 text-sm">Loading...</p>';
+    app.innerHTML = '';
+    app.appendChild(renderHeader());
+  }
+
+  function renderHeader() {
+    const el = document.createElement('div');
+    const refreshed = new Date(DATA.generated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+    el.innerHTML = `
+      <div class="bg-white rounded-xl border border-gray-200 p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Rebate Tracker Executive Dashboard</h1>
+          <p class="text-sm text-gray-500 mt-1">Operational status and turnaround overview for rebate workflow</p>
+        </div>
+        <div class="flex items-center gap-4 text-sm text-gray-500">
+          <span>Last refreshed: <span class="font-medium text-gray-700">${refreshed}</span></span>
+          <a href="${DATA.clickup_url}" target="_blank"
+             class="inline-flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+            &#8599; Open in ClickUp
+          </a>
+        </div>
+      </div>`;
+    return el;
   }
 </script>
 </body>
