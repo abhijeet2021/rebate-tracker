@@ -128,6 +128,57 @@ const DATA = {
     app.innerHTML = '';
     app.appendChild(renderHeader());
     app.appendChild(renderKPIStrip());
+    app.appendChild(renderProductivitySection());
+  }
+
+  function renderProductivitySection() {
+    const s = DATA.summary;
+    const showReco = s.avg_approval_wait_days > 5;
+    const completedPct = Math.round((s.done / s.total) * 100);
+    const approvalPct = Math.round((s.approval_invoice / s.total) * 100);
+    const openOtherPct = 100 - completedPct - approvalPct;
+
+    const el = document.createElement('div');
+    el.className = 'bg-white rounded-xl border border-gray-200 p-6 space-y-4';
+    el.innerHTML = `
+      <div>
+        <h2 class="text-base font-semibold text-gray-900">Productivity vs. Approval Lag</h2>
+        <p class="text-xs text-gray-500 mt-0.5">Work completed vs. time consumed waiting for approvals</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="rounded-xl border border-green-200 bg-green-50 p-5 flex flex-col gap-1">
+          <span class="text-xs font-medium text-green-700 uppercase tracking-wide">Tasks Completed</span>
+          <span class="text-4xl font-bold text-green-700">${s.done}</span>
+          <span class="text-xs text-green-600">tasks closed out</span>
+        </div>
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-5 flex flex-col gap-1">
+          <span class="text-xs font-medium text-amber-700 uppercase tracking-wide">Days Waiting for Approvals</span>
+          <span class="text-4xl font-bold text-amber-700">${s.total_approval_wait_days}</span>
+          <span class="text-xs text-amber-600">across ${s.approval_invoice} tasks · avg ${s.avg_approval_wait_days}d each</span>
+        </div>
+      </div>
+      <div>
+        <p class="text-xs text-gray-500 mb-2">Share of total tasks</p>
+        <div class="flex rounded-full overflow-hidden h-4">
+          <div class="bg-green-500" style="width:${completedPct}%" title="Completed ${completedPct}%"></div>
+          <div class="bg-amber-400" style="width:${approvalPct}%" title="Approval & Invoice ${approvalPct}%"></div>
+          <div class="bg-blue-400" style="width:${openOtherPct}%" title="Other open ${openOtherPct}%"></div>
+        </div>
+        <div class="flex gap-4 mt-2 text-xs text-gray-500">
+          <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-green-500"></span> Completed ${completedPct}%</span>
+          <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-amber-400"></span> Approval &amp; Invoice ${approvalPct}%</span>
+          <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-blue-400"></span> Other Open ${openOtherPct}%</span>
+        </div>
+      </div>
+      <p class="text-sm text-gray-600 bg-gray-50 rounded-lg px-4 py-3 border border-gray-200">
+        <strong>${s.done}</strong> tasks completed &middot;
+        <strong>${s.total_approval_wait_days}</strong> total days accumulated waiting for approvals across
+        <strong>${s.approval_invoice}</strong> current tasks &middot;
+        avg <strong>${s.avg_approval_wait_days} days</strong> per approval task
+      </p>
+      ${showReco ? `<div class="reco-panel">&#128161; <strong>Potential efficiency gain:</strong> Approval stage is experiencing higher processing time than earlier stages. Introducing batch approvals or automation may improve throughput.</div>` : ''}
+    `;
+    return el;
   }
 
   function renderHeader() {
