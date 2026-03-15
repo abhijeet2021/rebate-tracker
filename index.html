@@ -130,6 +130,9 @@ const DATA = {
     app.appendChild(renderKPIStrip());
     app.appendChild(renderProductivitySection());
     app.appendChild(renderStatusAndOverdueSection());
+    app.appendChild(renderLongestAndBottleneck());
+    app.appendChild(renderThroughputSection());
+    app.appendChild(renderDetailTable());
   }
 
   function renderProductivitySection() {
@@ -346,6 +349,252 @@ const DATA = {
 
       ${showReco ? `<div class="reco-panel">&#128161; <strong>Process opportunity:</strong> Some tasks have crossed the expected turnaround window. Reviewing SLA estimates or introducing early reminders may help reduce future overruns.</div>` : ''}
     `;
+    return el;
+  }
+
+  function renderLongestAndBottleneck() {
+    const s = DATA.summary;
+    const tasks = DATA.tasks;
+    const openTasks = tasks.filter(t => t.status !== 'Done');
+    const top5 = [...tasks].sort((a, b) => b.days_open - a.days_open).slice(0, 5);
+    const longestTask = top5[0];
+
+    const statusAvg = getStatusAvgAge();
+    const overallAvgAge = Math.round(openTasks.reduce((sum, t) => sum + t.days_open, 0) / openTasks.length);
+
+    const ownerBacklog = {};
+    openTasks.forEach(t => { ownerBacklog[t.assignee] = (ownerBacklog[t.assignee] || 0) + 1; });
+    const topOwners = Object.entries(ownerBacklog).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+    const openByStatus = {};
+    openTasks.forEach(t => { openByStatus[t.status] = (openByStatus[t.status] || 0) + 1; });
+
+    const statusColorMap = { 'To Do': '#9CA3AF', 'In Progress': '#2563EB', 'Approval & Invoice': '#D97706', 'Done': '#059669' };
+
+    const recos = [];
+    for (const [status, count] of Object.entries(openByStatus)) {
+      if (count / openTasks.length > 0.35) {
+        recos.push(`&#128161; <strong>Queue pressure detected</strong> \u2014 ${status} stage holds ${Math.round(count / openTasks.length * 100)}% of open tasks. Consider batch approvals or assigning a secondary reviewer.`);
+      }
+      if (statusAvg[status] && statusAvg[status] > 2 * overallAvgAge) {
+        recos.push(`&#128161; <strong>Workflow improvement suggestion</strong> \u2014 ${status} stage aging (${statusAvg[status]}d avg) is elevated vs overall avg (${overallAvgAge}d).`);
+      }
+    }
+    if (s.todo > 0 && s.open > 0 && s.todo / s.open > 0.40) {
+      recos.push(`&#128161; <strong>Queue pressure detected</strong> \u2014 Large To Do backlog suggests intake is faster than execution capacity. Prioritize queue grooming.`);
+    }
+
+    const el = document.createElement('div');
+    el.className = 'grid grid-cols-1 md:grid-cols-2 gap-6';
+    el.innerHTML = `
+      <div class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+        <div class="rounded-xl bg-red-50 border border-red-200 p-4">
+          <p class="text-xs text-red-600 font-medium uppercase tracking-wide">Max Time Taken</p>
+          <p class="text-3xl font-bold text-red-700">${longestTask.days_open}d</p>
+          <p class="text-sm text-gray-600 truncate">${longestTask.name}</p>
+          <span class="status-pill ${statusPillClass(longestTask.status)} mt-1">${longestTask.status}</span>
+        </div>
+        <h2 class="text-base font-semibold text-gray-900">Longest Running Tasks</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-gray-400 uppercase border-b border-gray-100">
+                <th class="pb-2 text-left font-medium">Task</th>
+                <th class="pb-2 text-left font-medium">Status</th>
+                <th class="pb-2 text-right font-medium">Days Open</th>
+                <th class="pb-2 text-right font-medium">In Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${top5.map(t => `
+                <tr class="border-b border-gray-50 hover:bg-gray-50">
+                  <td class="py-2 pr-2"><a href="${t.task_url}" target="_blank" class="text-blue-600 hover:underline truncate block max-w-xs">${t.name}</a><p class="text-xs text-gray-400">${t.assignee}</p></td>
+                  <td class="py-2"><span class="status-pill ${statusPillClass(t.status)}">${t.status}</span></td>
+                  <td class="py-2 text-right font-semibold text-gray-700">${t.days_open}d</td>
+                  <td class="py-2 text-right text-gray-500">${t.time_in_current_status}d</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+        <h2 class="text-base font-semibold text-gray-900">Bottleneck Analysis</h2>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide font-medium mb-2">Open Tasks by Stage</p>
+          ${Object.entries(openByStatus).sort((a, b) => b[1] - a[1]).map(([status, count]) => `
+            <div class="flex items-center gap-2 mb-2">
+              <span class="status-pill ${statusPillClass(status)} w-36 justify-center">${status}</span>
+              <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full" style="width:${Math.round(count / openTasks.length * 100)}%;background:${statusColorMap[status] || '#9CA3AF'}"></div>
+              </div>
+              <span class="text-sm font-semibold text-gray-700 w-8 text-right">${count}</span>
+              <span class="text-xs text-gray-400 w-12 text-right">avg ${statusAvg[status] || 0}d</span>
+            </div>`).join('')}
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wide font-medium mb-2">Owner Backlog</p>
+          ${topOwners.map(([owner, count]) => `
+            <div class="flex justify-between items-center py-1 border-b border-gray-50">
+              <span class="text-sm text-gray-700">${owner}</span>
+              <span class="text-sm font-semibold text-gray-800">${count} open</span>
+            </div>`).join('')}
+        </div>
+        ${recos.length > 0 ? recos.map(r => `<div class="reco-panel">${r}</div>`).join('') : ''}
+      </div>`;
+
+    return el;
+  }
+
+  function getISOWeek(dateStr) {
+    const d = new Date(dateStr);
+    const dayOfWeek = d.getDay() || 7;
+    d.setDate(d.getDate() + 4 - dayOfWeek);
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return `${d.getFullYear()}-W${String(weekNo).padStart(2, '00')}`;
+  }
+
+  function renderThroughputSection() {
+    const created = {}, closed = {};
+    DATA.tasks.forEach(t => {
+      const wk = getISOWeek(t.created_at);
+      created[wk] = (created[wk] || 0) + 1;
+      if (t.date_closed) {
+        const cwk = getISOWeek(t.date_closed);
+        closed[cwk] = (closed[cwk] || 0) + 1;
+      }
+    });
+
+    const allWeeks = [...new Set([...Object.keys(created), ...Object.keys(closed)])].sort();
+
+    const el = document.createElement('div');
+    el.className = 'bg-white rounded-xl border border-gray-200 p-6 space-y-4';
+
+    if (allWeeks.length < 2) {
+      el.innerHTML = `
+        <h2 class="text-base font-semibold text-gray-900">Throughput Trends</h2>
+        <div class="rounded-xl bg-gray-50 border border-gray-200 p-8 text-center text-gray-400 text-sm">
+          Trend data will activate once more historical tasks are available.
+        </div>`;
+      return el;
+    }
+
+    el.innerHTML = `
+      <h2 class="text-base font-semibold text-gray-900">Throughput Trends</h2>
+      <p class="text-xs text-gray-500">Tasks created vs. completed per week</p>
+      <div class="relative h-56"><canvas id="throughputChart"></canvas></div>`;
+
+    requestAnimationFrame(() => {
+      const ctx = document.getElementById('throughputChart');
+      if (!ctx) return;
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: allWeeks,
+          datasets: [
+            { label: 'Created',   data: allWeeks.map(w => created[w] || 0), backgroundColor: '#BFDBFE', borderRadius: 4 },
+            { label: 'Completed', data: allWeeks.map(w => closed[w] || 0),  backgroundColor: '#6EE7B7', borderRadius: 4 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 } } } },
+          scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: '#F3F4F6' } } }
+        }
+      });
+    });
+
+    return el;
+  }
+
+  function renderDetailTable() {
+    const statuses = ['All', 'To Do', 'In Progress', 'Approval & Invoice', 'Done'];
+    let activeFilter = 'All';
+    let searchTerm = '';
+
+    const el = document.createElement('div');
+    el.className = 'bg-white rounded-xl border border-gray-200 p-6 space-y-4';
+
+    function getFiltered() {
+      return DATA.tasks.filter(t => {
+        const matchStatus = activeFilter === 'All' || t.status === activeFilter;
+        const matchSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchStatus && matchSearch;
+      });
+    }
+
+    function buildTable() {
+      const filtered = getFiltered();
+      return `
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-gray-400 uppercase border-b border-gray-100">
+                <th class="pb-2 text-left font-medium">Task</th>
+                <th class="pb-2 text-left font-medium">Status</th>
+                <th class="pb-2 text-left font-medium">Assignee</th>
+                <th class="pb-2 text-left font-medium">Priority</th>
+                <th class="pb-2 text-left font-medium">Created</th>
+                <th class="pb-2 text-left font-medium">Due</th>
+                <th class="pb-2 text-right font-medium">Days Open</th>
+                <th class="pb-2 text-right font-medium">In Status</th>
+                <th class="pb-2 text-center font-medium">OD</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filtered.map(t => `
+                <tr class="border-b border-gray-50 hover:bg-gray-50 ${t.is_overdue ? 'bg-red-50' : ''}">
+                  <td class="py-2 pr-3"><a href="${t.task_url}" target="_blank" class="text-blue-600 hover:underline font-medium">${t.name}</a></td>
+                  <td class="py-2"><span class="status-pill ${statusPillClass(t.status)}">${t.status}</span></td>
+                  <td class="py-2 text-gray-600">${t.assignee}</td>
+                  <td class="py-2 text-gray-500">${t.priority || '—'}</td>
+                  <td class="py-2 text-gray-500">${t.created_at}</td>
+                  <td class="py-2 text-gray-500">${t.due_date || '—'}</td>
+                  <td class="py-2 text-right font-semibold text-gray-700">${t.days_open}</td>
+                  <td class="py-2 text-right text-gray-500">${t.time_in_current_status}d</td>
+                  <td class="py-2 text-center">${t.is_overdue ? '<span class="text-red-500 font-bold" title="Overdue">!</span>' : ''}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+          ${filtered.length === 0 ? '<p class="text-center text-gray-400 text-sm py-6">No tasks match your filter.</p>' : ''}
+          <p class="text-xs text-gray-400 mt-2">${filtered.length} of ${DATA.tasks.length} tasks shown</p>
+        </div>`;
+    }
+
+    el.innerHTML = `
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <h2 class="text-base font-semibold text-gray-900">Operational Detail</h2>
+        <input id="tableSearch" type="text" placeholder="Search tasks..."
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div class="flex flex-wrap gap-2" id="statusFilters">
+        ${statuses.map(s => `
+          <button data-status="${s}"
+            class="status-filter-btn text-xs px-3 py-1 rounded-full border font-medium transition-colors ${s === 'All' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}">
+            ${s}
+          </button>`).join('')}
+      </div>
+      <div id="tableBody">${buildTable()}</div>`;
+
+    requestAnimationFrame(() => {
+      el.querySelector('#tableSearch').addEventListener('input', e => {
+        searchTerm = e.target.value;
+        el.querySelector('#tableBody').innerHTML = buildTable();
+      });
+      el.querySelector('#statusFilters').addEventListener('click', e => {
+        const btn = e.target.closest('[data-status]');
+        if (!btn) return;
+        activeFilter = btn.dataset.status;
+        el.querySelectorAll('.status-filter-btn').forEach(b => {
+          const isActive = b.dataset.status === activeFilter;
+          b.className = `status-filter-btn text-xs px-3 py-1 rounded-full border font-medium transition-colors ${isActive ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`;
+        });
+        el.querySelector('#tableBody').innerHTML = buildTable();
+      });
+    });
+
     return el;
   }
 
