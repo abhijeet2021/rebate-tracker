@@ -129,6 +129,7 @@ const DATA = {
     app.appendChild(renderHeader());
     app.appendChild(renderKPIStrip());
     app.appendChild(renderProductivitySection());
+    app.appendChild(renderStatusAndOverdueSection());
   }
 
   function renderProductivitySection() {
@@ -178,6 +179,104 @@ const DATA = {
       </p>
       ${showReco ? `<div class="reco-panel">&#128161; <strong>Potential efficiency gain:</strong> Approval stage is experiencing higher processing time than earlier stages. Introducing batch approvals or automation may improve throughput.</div>` : ''}
     `;
+    return el;
+  }
+
+  function getStatusCounts() {
+    const counts = { 'To Do': 0, 'In Progress': 0, 'Approval & Invoice': 0, 'Done': 0 };
+    DATA.tasks.forEach(t => { if (counts[t.status] !== undefined) counts[t.status]++; });
+    return counts;
+  }
+
+  function getStatusAvgAge() {
+    const groups = {};
+    DATA.tasks.forEach(t => {
+      if (!groups[t.status]) groups[t.status] = [];
+      groups[t.status].push(t.days_open);
+    });
+    const result = {};
+    for (const [s, ages] of Object.entries(groups)) {
+      result[s] = Math.round(ages.reduce((a, b) => a + b, 0) / ages.length);
+    }
+    return result;
+  }
+
+  function statusPillClass(status) {
+    const map = { 'To Do': 'pill-todo', 'In Progress': 'pill-inprogress', 'Approval & Invoice': 'pill-approval', 'Done': 'pill-done' };
+    return map[status] || 'pill-todo';
+  }
+
+  function renderStatusAndOverdueSection() {
+    const counts = getStatusCounts();
+    const avgAge = getStatusAvgAge();
+    const total = DATA.summary.total;
+
+    const statusColors = {
+      'To Do': '#9CA3AF', 'In Progress': '#2563EB',
+      'Approval & Invoice': '#D97706', 'Done': '#059669'
+    };
+
+    const el = document.createElement('div');
+    el.className = 'grid grid-cols-1 md:grid-cols-3 gap-6';
+
+    // Left: status distribution (2/3 width)
+    const leftEl = document.createElement('div');
+    leftEl.className = 'md:col-span-2 bg-white rounded-xl border border-gray-200 p-6 space-y-4';
+    leftEl.innerHTML = `
+      <h2 class="text-base font-semibold text-gray-900">Status Distribution</h2>
+      <div class="flex flex-col md:flex-row gap-6 items-center">
+        <div class="w-48 h-48 flex-shrink-0">
+          <canvas id="donutChart"></canvas>
+        </div>
+        <div class="flex-1 space-y-3 w-full">
+          ${Object.entries(counts).map(([status, count]) => {
+            const pct = Math.round((count / total) * 100);
+            const avg = avgAge[status] || 0;
+            const maxAge = Math.max(...(DATA.tasks.filter(t => t.status === status).map(t => t.days_open).concat([0])));
+            return `
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <span class="status-pill ${statusPillClass(status)}">${status}</span>
+                <span class="text-sm font-semibold text-gray-700">${count} <span class="text-gray-400 font-normal">(${pct}%)</span></span>
+              </div>
+              <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full" style="width:${pct}%;background:${statusColors[status]}"></div>
+              </div>
+              <div class="flex gap-4 mt-1 text-xs text-gray-400">
+                <span>Avg age: ${avg}d</span>
+                <span>Max age: ${maxAge}d</span>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+
+    // Right: overdue panel placeholder (replaced in Task 8)
+    const rightEl = document.createElement('div');
+    rightEl.id = 'overdue-panel-slot';
+    rightEl.className = 'md:col-span-1 bg-white rounded-xl border border-gray-200 p-6';
+    rightEl.innerHTML = '<p class="text-xs text-gray-400">Overdue panel loading...</p>';
+
+    el.appendChild(leftEl);
+    el.appendChild(rightEl);
+
+    // Render donut chart and replace overdue slot after DOM insert
+    requestAnimationFrame(() => {
+      const ctx = document.getElementById('donutChart');
+      if (ctx) {
+        new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: Object.keys(counts),
+            datasets: [{ data: Object.values(counts), backgroundColor: Object.values(statusColors), borderWidth: 2, borderColor: '#fff' }]
+          },
+          options: { plugins: { legend: { display: false } }, cutout: '65%' }
+        });
+      }
+      const slot = document.getElementById('overdue-panel-slot');
+      if (slot) slot.replaceWith(renderOverduePanel());
+    });
+
     return el;
   }
 
